@@ -1,43 +1,75 @@
 import requests
-import pandas as pd
+#import pyodbc
+import os
+#import time
+import json
+from dotenv import load_dotenv
 
-def get_msci_world_data():
-    ticker = "XWD.TO" 
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-    params = {
-        'range': "1mo",
-        'interval': "1h"
+# API URL & Header
+load_dotenv()
+
+# # Azure SQL Verbindungsdaten
+# SERVER = os.getenv("AZURE_SQL_SERVER")
+# DATABASE = os.getenv("AZURE_SQL_DATABASE")
+# USERNAME = os.getenv("AZURE_SQL_USER")
+# PASSWORD = os.getenv("AZURE_SQL_PASSWORD")
+# DRIVER = "{ODBC Driver 17 for SQL Server}"
+
+with open('config.json', 'r') as config_file:
+    src_config = json.load(config_file)
+
+API_KEY = os.getenv("API_KEY")
+
+def fetch_data():
+    lat = src_config.get('lat')
+    lon = src_config.get('lon')
+
+    PARAMS = {
+            "lat": lat,
+            "lon": lon,
+            "appid": API_KEY
     }
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
+    api_url = src_config.get("URL")
 
-    response = requests.get(url, params=params, headers=headers)
-    data = response.json()
-    
-    result = data["chart"]["result"][0]
-    timestamps = result["timestamp"]
-    quotes = result["indicators"]["quote"][0]  # Quote enthält Preis- und Volumendaten
+    response = requests.get(api_url, params=PARAMS)
 
-    # Erstelle den DataFrame
-    df = pd.DataFrame({
-        "timestamp": timestamps,
-        "open": quotes["open"],
-        "high": quotes["high"],
-        "low": quotes["low"],
-        "close": quotes["close"],
-        "volume": quotes["volume"]
-    })
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Fehler beim Abrufen der API: {response.status_code}")
+        return None
 
-    # Optional: Konvertiere den Timestamp in ein Datetime-Format
-    df["date"] = pd.to_datetime(df["timestamp"], unit="s")
+def main():
+    data = fetch_data()
+    print(data)
 
-    # Spaltenreihenfolge anpassen
-    df = df[["date", "open", "high", "low", "close", "volume"]]
-
-    # Ausgabe des DataFrame
-    print(df)
 
 if __name__ == "__main__":
-    get_msci_world_data()
+    main()
+
+
+# def save_to_sql(data):
+#     """Speichert Daten in Azure SQL"""
+#     conn_str = f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}"
+#     try:
+#         conn = pyodbc.connect(conn_str)
+#         cursor = conn.cursor()
+        
+#         for item in data:
+#             cursor.execute(
+#                 "INSERT INTO my_table (id, name, value) VALUES (?, ?, ?)",
+#                 item["id"], item["name"], item["value"]
+#             )
+
+#         conn.commit()
+#         cursor.close()
+#         conn.close()
+#         print("Daten erfolgreich gespeichert")
+#     except Exception as e:
+#         print(f"Datenbankfehler: {e}")
+
+# if __name__ == "__main__":
+#     data = fetch_data()
+#     if data:
+#         save_to_sql(data)

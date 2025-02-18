@@ -1,12 +1,13 @@
 import requests
+import datetime as dt
 #import pyodbc
 import os
 #import time
 import json
-from dotenv import load_dotenv
-
+# from dotenv import load_dotenv
+import pandas as pd
 # API URL & Header
-load_dotenv()
+# load_dotenv()
 
 # # Azure SQL Verbindungsdaten
 # SERVER = os.getenv("AZURE_SQL_SERVER")
@@ -18,7 +19,9 @@ load_dotenv()
 with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
 
-API_KEY = os.getenv("API_KEY")
+#API_KEY = os.getenv("API_KEY")
+
+API_KEY = "3f50f026fcd5a9997867c99b2c505d34"
 
 def fetch_data():
     lat = src_config.get('lat')
@@ -40,9 +43,35 @@ def fetch_data():
         print(f"Fehler beim Abrufen der API: {response.status_code}")
         return None
 
+def build_df(data_input):
+    df = pd.DataFrame([{
+        'timestamp_epoch' : data_input['dt'],
+        'country' : data_input['sys']['country'],
+        'city' : data_input['name'],
+        'weather_main' : data_input['weather'][0]['main'],
+        'weather_desc' : data_input['weather'][0]['description'],
+        'temperature' : data_input['main']['temp'],
+        'humidity' : data_input['main']['humidity'],
+        'cloudiness': data_input['clouds']['all'],
+        'longitude' : data_input['coord']['lon'],
+        'latitude' : data_input['coord']['lat']
+    }])
+    return df
+
+def parse_timestamps(dataframe):
+    timestamp = dt.datetime.fromtimestamp(dataframe['timestamp_epoch'].iloc[0])
+    dataframe['timestamp'] = timestamp
+    dataframe['year'] = timestamp.year
+    dataframe['month'] = timestamp.month
+    dataframe['day'] = timestamp.day
+    dataframe['hour'] = timestamp.hour
+    return dataframe
+
 def main():
     data = fetch_data()
-    print(data)
+    df = build_df(data)
+    df = parse_timestamps(df)
+    print(df)
 
 
 if __name__ == "__main__":

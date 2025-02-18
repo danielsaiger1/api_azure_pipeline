@@ -1,20 +1,18 @@
 import requests
 import datetime as dt
-#import pyodbc
+import pyodbc
 import os
-#import time
 import json
 # from dotenv import load_dotenv
 import pandas as pd
-# API URL & Header
 # load_dotenv()
 
-# # Azure SQL Verbindungsdaten
-# SERVER = os.getenv("AZURE_SQL_SERVER")
-# DATABASE = os.getenv("AZURE_SQL_DATABASE")
-# USERNAME = os.getenv("AZURE_SQL_USER")
-# PASSWORD = os.getenv("AZURE_SQL_PASSWORD")
-# DRIVER = "{ODBC Driver 17 for SQL Server}"
+# Azure SQL Verbindungsdaten
+SERVER = os.getenv("AZURE_SQL_SERVER")
+DATABASE = os.getenv("AZURE_SQL_DATABASE")
+USERNAME = os.getenv("AZURE_SQL_USER")
+PASSWORD = os.getenv("AZURE_SQL_PASSWORD")
+DRIVER = "{ODBC Driver 17 for SQL Server}"
 
 with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
@@ -45,7 +43,7 @@ def fetch_data():
 
 def build_df(data_input):
     df = pd.DataFrame([{
-        'timestamp_epoch' : data_input['dt'],
+        'timestamp_unix' : data_input['dt'],
         'country' : data_input['sys']['country'],
         'city' : data_input['name'],
         'weather_main' : data_input['weather'][0]['main'],
@@ -59,46 +57,55 @@ def build_df(data_input):
     return df
 
 def parse_timestamps(dataframe):
-    timestamp = dt.datetime.fromtimestamp(dataframe['timestamp_epoch'].iloc[0])
-    dataframe['timestamp'] = timestamp
+    timestamp = dt.datetime.fromtimestamp(dataframe['timestamp_unix'].iloc[0])
+    dataframe['timestamp_dt'] = timestamp
     dataframe['year'] = timestamp.year
     dataframe['month'] = timestamp.month
     dataframe['day'] = timestamp.day
     dataframe['hour'] = timestamp.hour
     return dataframe
 
+def save_to_sql(dataframe):
+    conn_str = f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}"
+    try:
+        conn = pyodbc.connect(conn_str)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+                f"INSERT INTO weather_data (timestamp_unix, timestamp_dt, year, month, day, country, city, weather_main, weather_desc, temperature, humidity, cloudiness, longitude, latitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                dataframe['timestamp_unix'], 
+                dataframe['timestamp_dt'],
+                dataframe['year'], 
+                dataframe['month'], 
+                dataframe['day'], 
+                dataframe['hour'],
+                dataframe['country'], 
+                dataframe['city'], 
+                dataframe['weather_main'], 
+                dataframe['weather_desc'], 
+                dataframe['temperature'], 
+                dataframe['humidity'], 
+                dataframe['cloudiness'], 
+                dataframe['longitude'], 
+                dataframe['latitude']
+            )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+        print("Daten erfolgreich gespeichert")
+    except Exception as e:
+        print(f"Datenbankfehler: {e}")
+
+
+
 def main():
     data = fetch_data()
     df = build_df(data)
     df = parse_timestamps(df)
+    save_to_sql(df)
     print(df)
 
 
 if __name__ == "__main__":
     main()
-
-
-# def save_to_sql(data):
-#     """Speichert Daten in Azure SQL"""
-#     conn_str = f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}"
-#     try:
-#         conn = pyodbc.connect(conn_str)
-#         cursor = conn.cursor()
-        
-#         for item in data:
-#             cursor.execute(
-#                 "INSERT INTO my_table (id, name, value) VALUES (?, ?, ?)",
-#                 item["id"], item["name"], item["value"]
-#             )
-
-#         conn.commit()
-#         cursor.close()
-#         conn.close()
-#         print("Daten erfolgreich gespeichert")
-#     except Exception as e:
-#         print(f"Datenbankfehler: {e}")
-
-# if __name__ == "__main__":
-#     data = fetch_data()
-#     if data:
-#         save_to_sql(data)

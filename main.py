@@ -3,9 +3,10 @@ import datetime as dt
 import pyodbc
 import os
 import json
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 import pandas as pd
-# load_dotenv()
+
+load_dotenv()
 
 # Azure SQL Verbindungsdaten
 SERVER = os.getenv("AZURE_SQL_SERVER")
@@ -17,9 +18,7 @@ DRIVER = "{ODBC Driver 17 for SQL Server}"
 with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
 
-#API_KEY = os.getenv("API_KEY")
-
-API_KEY = "3f50f026fcd5a9997867c99b2c505d34"
+API_KEY = os.getenv("API_KEY")
 
 def fetch_data():
     lat = src_config.get('lat')
@@ -72,23 +71,28 @@ def save_to_sql(dataframe):
         cursor = conn.cursor()
         
         cursor.execute(
-                f"INSERT INTO weather_data (timestamp_unix, timestamp_dt, year, month, day, country, city, weather_main, weather_desc, temperature, humidity, cloudiness, longitude, latitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                dataframe['timestamp_unix'], 
-                dataframe['timestamp_dt'],
-                dataframe['year'], 
-                dataframe['month'], 
-                dataframe['day'], 
-                dataframe['hour'],
-                dataframe['country'], 
-                dataframe['city'], 
-                dataframe['weather_main'], 
-                dataframe['weather_desc'], 
-                dataframe['temperature'], 
-                dataframe['humidity'], 
-                dataframe['cloudiness'], 
-                dataframe['longitude'], 
-                dataframe['latitude']
-            )
+            """
+            INSERT INTO weather_data 
+            (timestamp_unix, timestamp_dt, year, month, day, hour, country, city, weather_main, weather_desc, temperature, humidity, cloudiness, longitude, latitude) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            int(dataframe['timestamp_unix'].iloc[0]),
+            dataframe['timestamp_dt'].iloc[0],
+            int(dataframe['year'].iloc[0]),
+            int(dataframe['month'].iloc[0]),
+            int(dataframe['day'].iloc[0]),
+            int(dataframe['hour'].iloc[0]),
+            dataframe['country'].iloc[0],
+            dataframe['city'].iloc[0],
+            dataframe['weather_main'].iloc[0],
+            dataframe['weather_desc'].iloc[0],
+            float(dataframe['temperature'].iloc[0]),
+            int(dataframe['humidity'].iloc[0]),
+            int(dataframe['cloudiness'].iloc[0]),
+            float(dataframe['longitude'].iloc[0]),
+            float(dataframe['latitude'].iloc[0])
+        )
+
         
         conn.commit()
         cursor.close()

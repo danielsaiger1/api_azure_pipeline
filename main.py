@@ -64,6 +64,10 @@ def parse_timestamps(dataframe):
     dataframe['hour'] = timestamp.hour
     return dataframe
 
+def parse_temperature(dataframe):
+    dataframe['temperature'] = dataframe['temperature'] - 273.15
+    return dataframe
+
 def save_to_sql(dataframe):
     conn_str = f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}"
     try:
@@ -107,6 +111,7 @@ def main():
     data = fetch_data()
     df = build_df(data)
     df = parse_timestamps(df)
+    df = parse_temperature(df)
     save_to_sql(df)
     print(df)
 

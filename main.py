@@ -5,6 +5,7 @@ import os
 import json
 from dotenv import load_dotenv
 import pandas as pd
+import numpy as np
 import logging
 
 load_dotenv()
@@ -16,12 +17,12 @@ USERNAME = os.getenv("AZURE_SQL_USER")
 PASSWORD = os.getenv("AZURE_SQL_PASSWORD")
 DRIVER = "{ODBC Driver 17 for SQL Server}"
 
-with open('/app/config.json', 'r') as config_file:
+#logging.basicConfig(filename='/var/log/main_py_log.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
 
 API_KEY = os.getenv("API_KEY")
-
-logging.basicConfig(filename='/var/log/main_py.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def fetch_data():
     lat = src_config.get('lat')
@@ -37,7 +38,7 @@ def fetch_data():
 
     try:
         response = requests.get(api_url, params=PARAMS)
-        response.raise_for_status()  # Will trigger an exception for 4xx/5xx responses
+        response.raise_for_status() 
         logging.info(f"API-Aufruf erfolgreich: {api_url}")
         return response.json()
     except requests.exceptions.RequestException as e:
@@ -72,53 +73,39 @@ def parse_temperature(dataframe):
     dataframe['temperature'] = dataframe['temperature'] - 273.15
     return dataframe
 
-def save_to_sql(dataframe):
+def create_sql_statement(dataframe):
+    table_name = 'weather_data'
+    columns = list(dataframe.columns.values)
+    placeholders = ",".join(["?" for _ in columns])
+
+    sql = f'INSERT INTO {table_name} ({",".join(columns)}) VALUES ({placeholders})'
+    return sql
+
+def save_to_sql(dataframe, sql_statement):
     conn_str = f"DRIVER={DRIVER};SERVER={SERVER};DATABASE={DATABASE};UID={USERNAME};PWD={PASSWORD}"
     try:
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
-        
-        cursor.execute(
-            """
-            INSERT INTO weather_data 
-            (timestamp_unix, timestamp_dt, year, month, day, hour, country, city, weather_main, weather_desc, temperature, humidity, cloudiness, longitude, latitude) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            int(dataframe['timestamp_unix'].iloc[0]),
-            dataframe['timestamp_dt'].iloc[0],
-            int(dataframe['year'].iloc[0]),
-            int(dataframe['month'].iloc[0]),
-            int(dataframe['day'].iloc[0]),
-            int(dataframe['hour'].iloc[0]),
-            dataframe['country'].iloc[0],
-            dataframe['city'].iloc[0],
-            dataframe['weather_main'].iloc[0],
-            dataframe['weather_desc'].iloc[0],
-            float(dataframe['temperature'].iloc[0]),
-            int(dataframe['humidity'].iloc[0]),
-            int(dataframe['cloudiness'].iloc[0]),
-            float(dataframe['longitude'].iloc[0]),
-            float(dataframe['latitude'].iloc[0])
-        )
 
-        
+        values = [val.item() if isinstance(val, (np.int64, np.float64)) else val for val in dataframe.iloc[0].tolist()]
+        print(values)
+        cursor.execute(sql_statement, values) 
+
         conn.commit()
         cursor.close()
         conn.close()
-        logging.info("Daten erfolgreich gespeichert")
+        logging.info("Data saved sucessfully")
     except Exception as e:
-        logging.error(f"Verbindungsfehler zu SQL: {e}")
-
-
+        logging.error(f"Connection_error: {e}")
 
 def main():
     data = fetch_data()
     df = build_df(data)
     df = parse_timestamps(df)
     df = parse_temperature(df)
-    save_to_sql(df)
-    return df
-
+    sql_insert = create_sql_statement(df)
+    save_to_sql(df, sql_insert)
+    print(f"Data has been saved with the following SQL Statement: {sql_insert}")
 
 if __name__ == "__main__":
     main()

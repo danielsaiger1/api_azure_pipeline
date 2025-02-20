@@ -16,7 +16,7 @@ USERNAME = os.getenv("AZURE_SQL_USER")
 PASSWORD = os.getenv("AZURE_SQL_PASSWORD")
 DRIVER = "{ODBC Driver 17 for SQL Server}"
 
-with open('config.json', 'r') as config_file:
+with open('/app/config.json', 'r') as config_file:
     src_config = json.load(config_file)
 
 API_KEY = os.getenv("API_KEY")

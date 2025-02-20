@@ -1,19 +1,30 @@
-FROM python:3.9
-
-RUN pip install pandas requests python-dotenv psycopg2 dagster dagster-webserver dagit dagster_postgres
+FROM python:3.11.9
 
 WORKDIR /app
-ENV DAGSTER_HOME=/app
 
-COPY dagster.yaml .
-COPY workspace.yaml .
-COPY Datasets /app/Datasets
-COPY .env /app/
-COPY dags/city_sampler.py /app/
-COPY dags/data_ingestion.py /app/
-COPY dags/generate_sql_inserts.py /app/
-COPY dags/repository.py /app/dags/repository.py
+RUN apt-get update && apt-get install -y \
+    unixodbc \
+    unixodbc-dev \
+    odbcinst \
+    curl \
+    gnupg2 \
+    cron
 
-EXPOSE 3000
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
+    curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+    apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17
 
-CMD ["dagster-webserver", "-w", "workspace.yaml", "-h", "0.0.0.0", "-p", "3000"]
+ENV ODBCINI=/etc/odbc.ini
+ENV ODBCSYSINI=/etc
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+COPY .env .env
+
+COPY cronfile /etc/cron.d/cronfile
+RUN chmod 0644 /etc/cron.d/cronfile
+
+CMD ["cron", "-f"]

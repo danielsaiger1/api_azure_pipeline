@@ -18,6 +18,10 @@ DRIVER = "{ODBC Driver 17 for SQL Server}"
 with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
 
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"
+}
+
 API_KEY = os.getenv("API_KEY")
 
 def fetch_data():
@@ -32,7 +36,7 @@ def fetch_data():
 
     api_url = src_config.get("URL")
 
-    response = requests.get(api_url, params=PARAMS)
+    response = requests.get(api_url, headers=headers,params=PARAMS)
 
     if response.status_code == 200:
         return response.json()

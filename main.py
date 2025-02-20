@@ -8,21 +8,19 @@ import pandas as pd
 import numpy as np
 import logging
 
+#logging.basicConfig(filename='/var/log/main_py_log.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 load_dotenv()
 
-# Azure SQL Verbindungsdaten
 SERVER = os.getenv("AZURE_SQL_SERVER")
 DATABASE = os.getenv("AZURE_SQL_DATABASE")
 USERNAME = os.getenv("AZURE_SQL_USER")
 PASSWORD = os.getenv("AZURE_SQL_PASSWORD")
 DRIVER = "{ODBC Driver 17 for SQL Server}"
-
-#logging.basicConfig(filename='/var/log/main_py_log.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+API_KEY = os.getenv("API_KEY")
 
 with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
-
-API_KEY = os.getenv("API_KEY")
 
 def fetch_data():
     lat = src_config.get('lat')
@@ -79,6 +77,7 @@ def create_sql_statement(dataframe):
     placeholders = ",".join(["?" for _ in columns])
 
     sql = f'INSERT INTO {table_name} ({",".join(columns)}) VALUES ({placeholders})'
+    
     return sql
 
 def save_to_sql(dataframe, sql_statement):
@@ -87,7 +86,7 @@ def save_to_sql(dataframe, sql_statement):
         conn = pyodbc.connect(conn_str)
         cursor = conn.cursor()
 
-        values = [val.item() if isinstance(val, (np.int64, np.float64)) else val for val in dataframe.iloc[0].tolist()]
+        values = [val.item() if isinstance(val, (np.int64, np.float64)) else val for val in list(dataframe.iloc[0])]
         print(values)
         cursor.execute(sql_statement, values) 
 

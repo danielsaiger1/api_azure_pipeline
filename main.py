@@ -5,6 +5,7 @@ import os
 import json
 from dotenv import load_dotenv
 import pandas as pd
+import logging
 
 load_dotenv()
 
@@ -18,11 +19,9 @@ DRIVER = "{ODBC Driver 17 for SQL Server}"
 with open('config.json', 'r') as config_file:
     src_config = json.load(config_file)
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36"
-}
-
 API_KEY = os.getenv("API_KEY")
+
+logging.basicConfig(filename='/var/log/weather_script.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def fetch_data():
     lat = src_config.get('lat')
@@ -36,12 +35,13 @@ def fetch_data():
 
     api_url = src_config.get("URL")
 
-    response = requests.get(api_url, headers=headers,params=PARAMS)
-
-    if response.status_code == 200:
+    try:
+        response = requests.get(api_url, params=PARAMS)
+        response.raise_for_status()  # Will trigger an exception for 4xx/5xx responses
+        logging.info(f"API-Aufruf erfolgreich: {api_url}")
         return response.json()
-    else:
-        print(f"Fehler beim Abrufen der API: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Fehler beim Abrufen der API: {e}")
         return None
 
 def build_df(data_input):
@@ -105,9 +105,9 @@ def save_to_sql(dataframe):
         conn.commit()
         cursor.close()
         conn.close()
-        print("Daten erfolgreich gespeichert")
+        logging.info("Daten erfolgreich gespeichert")
     except Exception as e:
-        print(f"Datenbankfehler: {e}")
+        logging.error(f"Verbindungsfehler zu SQL: {e}")
 
 
 
@@ -117,7 +117,7 @@ def main():
     df = parse_timestamps(df)
     df = parse_temperature(df)
     save_to_sql(df)
-    print(df)
+    return df
 
 
 if __name__ == "__main__":

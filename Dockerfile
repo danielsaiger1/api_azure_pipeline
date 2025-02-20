@@ -27,4 +27,6 @@ COPY .env .env
 COPY cronfile /etc/cron.d/cronfile
 RUN chmod 0644 /etc/cron.d/cronfile
 
-CMD cron && while :; do sleep 10; done
+RUN touch /var/log/main_py.log
+
+CMD ["cron", "-f"]

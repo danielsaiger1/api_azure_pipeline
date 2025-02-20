@@ -21,7 +21,7 @@ with open('config.json', 'r') as config_file:
 
 API_KEY = os.getenv("API_KEY")
 
-logging.basicConfig(filename='/var/log/weather_script.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='/var/log/main_py.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def fetch_data():
     lat = src_config.get('lat')
